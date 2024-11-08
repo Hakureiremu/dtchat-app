@@ -1,44 +1,85 @@
 from django.shortcuts import render
-
-def index(request):
-    return render(request, 'index.html')
-import os
-import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-import json 
+import json
+from .strategy.service import *
+from .apis import connectors
+from .strategy import *  
+from openai import OpenAI
+import logging
 
-OPENAI_API_KEY = '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'  # 在这里替换为你的 OpenAI API 密钥
+logger = logging.getLogger(__name__)
+# OPENAI_API_KEY = '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'  
+GPT_MODEL = 'gpt-4o-2024-08-06'
+
+client = OpenAI() 
+
+@csrf_exempt
+def index(request):
+    return render(request, 'index.html')
 
 @csrf_exempt
 def ask_gpt(request):
-    print(request.body)
     if request.method == 'POST':
         data = json.loads(request.body)
         question = data.get('question', '')
-        print("question: ", question)
-        if question:
-            headers = {
-                'Authorization': f'Bearer {OPENAI_API_KEY}',
-                'Content-Type': 'application/json',
-            }
-            json_data = {
-                'model': 'gpt-3.5-turbo',
-                'messages': [{'role': 'user', 'content': question}],
-            }
+        messages = [{"role": "user", "content": question}]
 
-            response = requests.post(
-                'https://api.openai.com/v1/chat/completions',
-                headers=headers,
-                json=json_data
+        if question:                                                                                                                                     
+            response = client.chat.completions.create(
+                model=GPT_MODEL,
+                messages=messages,
+                tools=connectors,
+                tool_choice = "auto"
             )
 
-            if response.status_code == 200:
-                answer = response.json()['choices'][0]['message']['content']
-                print("answer: ", answer)
-                return JsonResponse({'answer': answer})
+            print("gpt 1st response:", response)
+            tool_calls = response.choices[0].message.tool_calls
+            response_message = response.choices[0].message
+            messages.append(response_message)
+
+            if tool_calls:
+                tool_call_id = tool_calls[0].id         
+                
+                api_response = function_call(question, response)
+                print(f"api response: {api_response}")
+                method = api_response.get("method")
+                api_data = json.dumps(api_response, ensure_ascii=False)
+                have_schema = api_response.get("have_schema")
+
+                messages.append({
+                    "role": "tool",
+                    "name": method,
+                    "tool_call_id": tool_call_id, 
+                    "content": api_data
+                })
+
+                if have_schema:                     
+                    messages.append({
+                        "role": "user", 
+                        "content": f"Here is the data from api call: {api_data}. Please provide a very very concise summary based on the data."
+                    })
+                
+                second_response = client.chat.completions.create(
+                    model=GPT_MODEL,
+                    messages=messages,
+                    tools=connectors,
+                    tool_choice = "none",
+                    temperature=0.7
+                )
+
+                final_answer = second_response.choices[0].message.content
+                return JsonResponse({
+                    'answer': final_answer,
+                    'data': api_response.get('result', {}),
+                    'function_name': method
+                })
+
             else:
-                return JsonResponse({'error': 'Failed to get response from OpenAI'}, status=500)
+                print(response)
+                return JsonResponse({'answer': response.choices[0].message.content})
+
+
         else:
             return JsonResponse({'error': 'No question provided'}, status=400)
     else:
