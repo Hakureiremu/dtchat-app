@@ -3,17 +3,17 @@
     <div class="messages">
       <div v-for="(message, index) in messages" :key="index" :class="{'message': true, 'message-user': message.sender === 'You', 'message-bot': message.sender === 'Bot'}">
         <div class="message-content">
-          <!-- 显示文本内容 -->
+          <!-- display text content -->
           <div v-if="message.text">{{ message.text }}</div>
           
-          <!-- 显示加载动画 -->
+          <!-- display loading animation -->
           <div v-if="message.loading" class="loading">
             <span class="dot"></span>
             <span class="dot"></span>
             <span class="dot"></span>
           </div>
 
-          <!-- 显示结构化数据 -->     
+          <!-- display structured data -->     
           <div v-if="message.table" class="structured-table">
             <table>
               <thead>
@@ -34,7 +34,8 @@
                 </tr>
               </tbody>
             </table>
-          </div>       
+          </div>  
+               
         </div>      
       </div>
     </div>
@@ -44,7 +45,6 @@
       <button @click="sendMessage">Send</button>
     </div>
 
-    <!-- 错误信息 -->
     <p v-if="error" class="error">Error: {{ error }}</p>
   </div>
 </template>

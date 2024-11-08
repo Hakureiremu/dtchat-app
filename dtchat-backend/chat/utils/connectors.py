@@ -16,3 +16,7 @@ hunter_conn = connect("hunter", _auth={"access_token":'889bad75b2222f069c1f40257
 # What are the top 10 Fitness Channels on Youtube?
 # Who are executives of asana.com and what are their emails?
 # Is this email dustin@asana.com valid?
+
+# API service Provider chapter2 
+
+# chapter 3 add a overall 
